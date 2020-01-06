@@ -13,7 +13,7 @@ static void goToOutput(void) {
   //Настройка порта на выход 
   GPIO_InitStruct.Pin = DHT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD; 	//Открытый сток
-	#if DHT_pullUp == 1
+	#if DHT_PullUp == 1
   GPIO_InitStruct.Pull = GPIO_PULLUP;						//Подтяжка к питанию
 	#else 
   GPIO_InitStruct.Pull = GPIO_NOPULL;						//Без подтяжки
@@ -28,7 +28,7 @@ static void goToInput(void) {
   //Настройка порта на вход 
   GPIO_InitStruct.Pin = DHT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	#if DHT_pullUp == 1
+	#if DHT_PullUp == 1
   GPIO_InitStruct.Pull = GPIO_PULLUP;						//Подтяжка к питанию
 	#else 
   GPIO_InitStruct.Pull = GPIO_NOPULL;						//Без подтяжки
@@ -50,12 +50,24 @@ DHT_data DHT_getData(DHT_type t) {
 	goToInput();
 	
 	/* Ожидание ответа от датчика */
+	uint16_t timeout = 0;
 	//Ожидание спада
-	while(getLine());
+	while(getLine()) {
+		timeout++;
+		if (timeout > DHT_timeout) return data;
+	}
+	timeout = 0;
 	//Ожидание подъёма
-	while(!getLine());
+	while(!getLine()) {
+		timeout++;
+		if (timeout > DHT_timeout) return data;
+	}
+	timeout = 0;
 	//Ожидание спада
-	while(getLine());
+	while(getLine()) {
+		timeout++;
+		if (timeout > DHT_timeout) return data;
+	}
 	
 	/* Чтение ответа от датчика */
 	uint8_t rawData[5] = {0,0,0,0,0};
