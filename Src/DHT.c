@@ -13,7 +13,11 @@ static void goToOutput(void) {
   //Настройка порта на выход 
   GPIO_InitStruct.Pin = DHT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD; 	//Открытый сток
+	#if DHT_pullUp == 1
+  GPIO_InitStruct.Pull = GPIO_PULLUP;						//Подтяжка к питанию
+	#else 
   GPIO_InitStruct.Pull = GPIO_NOPULL;						//Без подтяжки
+	#endif
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; //Высокая скорость работы порта
   HAL_GPIO_Init(DHT_Port, &GPIO_InitStruct);
 }
@@ -24,7 +28,11 @@ static void goToInput(void) {
   //Настройка порта на вход 
   GPIO_InitStruct.Pin = DHT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL; 					//Без подтяжки
+	#if DHT_pullUp == 1
+  GPIO_InitStruct.Pull = GPIO_PULLUP;						//Подтяжка к питанию
+	#else 
+  GPIO_InitStruct.Pull = GPIO_NOPULL;						//Без подтяжки
+	#endif
   HAL_GPIO_Init(DHT_Port, &GPIO_InitStruct);
 }
 
