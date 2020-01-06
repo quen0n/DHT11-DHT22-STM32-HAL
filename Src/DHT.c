@@ -29,6 +29,8 @@ static void goToInput(void) {
 }
 
 DHT_data DHT_getData(void) {
+	DHT_data data = {0.0f, 0.0f};
+	
 	/* Запрос данных у датчика */
 	//Перевод пина "на выход"
 	goToOutput();
@@ -48,78 +50,25 @@ DHT_data DHT_getData(void) {
 	while(getLine());
 	
 	/* Чтение ответа от датчика */
-	//Чтение 16-ти бит влажности 
-	uint16_t hum = 0;
-	for(uint8_t i = 15; i != 255; i--) {
-		uint32_t hT = 0, lT = 0;
-		//Пока линия в низком уровне, инкремент переменной lT
-		while(!getLine()) lT++;
-		//Пока линия в высоком уровне, инкремент переменной hT
-		while(getLine()) hT++;
-		//Если hT больше lT, то пришла единица
-		if(hT > lT) hum |= (1<<i);
-	}
-	//Чтение 16-ти бит температуры 
-	uint16_t temp = 0;
-	for(uint8_t i = 15; i != 255; i--) {
-		uint32_t hT = 0, lT = 0;
-		//Пока линия в низком уровне, инкремент переменной lT
-		while(!getLine()) lT++;
-		//Пока линия в высоком уровне, инкремент переменной hT
-		while(getLine()) hT++;
-		//Если hT больше lT, то пришла единица
-		if(hT > lT) temp |= (1<<i);
-	}
-	//Чтение 8-ми бит контрольной суммы 
-	uint16_t checkSum = 0;
-	for(uint8_t i = 7; i != 255; i--) {
-		uint32_t hT = 0, lT = 0;
-		//Пока линия в низком уровне, инкремент переменной lT
-		while(!getLine()) lT++;
-		//Пока линия в высоком уровне, инкремент переменной hT
-		while(getLine()) hT++;
-		//Если hT больше lT, то пришла единица
-		if(hT > lT) checkSum |= (1<<i);
+	uint8_t rawData[5] = {0,0,0,0,0};
+	for(uint8_t a = 0; a < 5; a++) {
+		for(uint8_t b = 7; b != 255; b--) {
+			uint32_t hT = 0, lT = 0;
+			//Пока линия в низком уровне, инкремент переменной lT
+			while(!getLine()) lT++;
+			//Пока линия в высоком уровне, инкремент переменной hT
+			while(getLine()) hT++;
+			//Если hT больше lT, то пришла единица
+			if(hT > lT) rawData[a] |= (1<<b);
+		}
 	}
 	
 	/* Проверка целостности данных */
+	if((uint8_t)(rawData[0] + rawData[1] + rawData[2] + rawData[3]) == rawData[4]) {
+		//Если контрольная сумма совпадает, то конвертация и возврат полученных значений
+		data.hum = (float)(((uint16_t)rawData[0]<<8) | rawData[1])*0.1f;
+		data.temp = (float)(((uint16_t)rawData[2]<<8) | rawData[3])*0.1f;
+	}
 	
-	/* Конвертация и возврат полученных значений */
-	DHT_data data = {(float)hum*0.1f,(float)temp*0.1f};
 	return data;	
 }
-
-
-
-/*static void MX_GPIO_Init(void)
-{
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-  // GPIO Ports Clock Enable 
-  __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-
-  //Configure GPIO pin Output Level 
-  HAL_GPIO_WritePin(DHT_PIN_GPIO_Port, DHT_PIN_Pin, GPIO_PIN_SET);
-
-  //Configure GPIO pin : DHT_PIN_Pin 
-  GPIO_InitStruct.Pin = DHT_PIN_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  HAL_GPIO_Init(DHT_PIN_GPIO_Port, &GPIO_InitStruct);
-
-
-	
-	  GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-  // GPIO Ports Clock Enable 
-  __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-
-  //Configure GPIO pin : PA0 
-  GPIO_InitStruct.Pin = GPIO_PIN_0;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-*/
