@@ -87,7 +87,13 @@ DHT_data DHT_getData(DHT_type t) {
 		//Если контрольная сумма совпадает, то конвертация и возврат полученных значений
 		if (t == DHT22) {
 			data.hum = (float)(((uint16_t)rawData[0]<<8) | rawData[1])*0.1f;
-			data.temp = (float)(((uint16_t)rawData[2]<<8) | rawData[3])*0.1f;
+			//Проверка на отрицательность температуры
+			if(!(rawData[2] & (1<<7))) {
+				data.temp = (float)(((uint16_t)rawData[2]<<8) | rawData[3])*0.1f;
+			}	else {
+				rawData[2] &= ~(1<<7);
+				data.temp = (float)(((uint16_t)rawData[2]<<8) | rawData[3])*-0.1f;
+			}
 		}
 		if (t == DHT11) {
 			data.hum = (float)rawData[0];
