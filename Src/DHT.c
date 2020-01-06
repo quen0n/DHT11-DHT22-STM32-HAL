@@ -36,7 +36,7 @@ static void goToInput(void) {
   HAL_GPIO_Init(DHT_Port, &GPIO_InitStruct);
 }
 
-DHT_data DHT_getData(void) {
+DHT_data DHT_getData(DHT_type t) {
 	DHT_data data = {0.0f, 0.0f};
 	
 	/* Запрос данных у датчика */
@@ -70,12 +70,17 @@ DHT_data DHT_getData(void) {
 			if(hT > lT) rawData[a] |= (1<<b);
 		}
 	}
-	
 	/* Проверка целостности данных */
 	if((uint8_t)(rawData[0] + rawData[1] + rawData[2] + rawData[3]) == rawData[4]) {
 		//Если контрольная сумма совпадает, то конвертация и возврат полученных значений
-		data.hum = (float)(((uint16_t)rawData[0]<<8) | rawData[1])*0.1f;
-		data.temp = (float)(((uint16_t)rawData[2]<<8) | rawData[3])*0.1f;
+		if (t == DHT22) {
+			data.hum = (float)(((uint16_t)rawData[0]<<8) | rawData[1])*0.1f;
+			data.temp = (float)(((uint16_t)rawData[2]<<8) | rawData[3])*0.1f;
+		}
+		if (t == DHT11) {
+			data.hum = (float)rawData[0];
+			data.temp = (float)rawData[2];;
+		}
 	}
 	
 	return data;	
