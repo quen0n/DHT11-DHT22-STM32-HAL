@@ -13,6 +13,7 @@ typedef enum {
 	DHT11,
 	DHT22
 } DHT_type;
+
 /* Настройки */
 #define DHT_Port 	GPIOA				//Группа линии данных
 #define DHT_Pin 	GPIO_PIN_0 	//Пин линии данных

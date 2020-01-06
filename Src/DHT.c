@@ -3,6 +3,7 @@
 #define lineDown() 	HAL_GPIO_WritePin(DHT_Port, DHT_Pin, GPIO_PIN_RESET)
 #define lineUp()		HAL_GPIO_WritePin(DHT_Port, DHT_Pin, GPIO_PIN_SET)
 #define getLine()		(HAL_GPIO_ReadPin(DHT_Port, DHT_Pin) == GPIO_PIN_SET)
+#define Delay(d)		HAL_Delay(d)
 
 static void goToOutput(void) {
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -44,7 +45,7 @@ DHT_data DHT_getData(DHT_type t) {
 	goToOutput();
 	//Опускание линии данных на 15 мс
 	lineDown();
-	HAL_Delay(15);
+	Delay(15);
 	//Подъём линии, перевод порта "на вход"
 	lineUp();
 	goToInput();
