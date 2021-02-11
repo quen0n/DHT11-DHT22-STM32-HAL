@@ -78,7 +78,11 @@ DHT_data DHT_getData(DHT_type t) {
 			//Пока линия в низком уровне, инкремент переменной lT
 			while(!getLine()) lT++;
 			//Пока линия в высоком уровне, инкремент переменной hT
-			while(getLine()) hT++;
+			timeout = 0;
+			while(getLine()) {
+				hT++; timeout++;
+			if (timeout > DHT_timeout) return data;
+			}
 			//Если hT больше lT, то пришла единица
 			if(hT > lT) rawData[a] |= (1<<b);
 		}
