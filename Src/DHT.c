@@ -1,6 +1,6 @@
 #include "DHT.h"
 
-#define lineDown() 	HAL_GPIO_WritePin(DHT_Port, DHT_Pin, GPIO_PIN_RESET)
+#define lineDown() 		HAL_GPIO_WritePin(DHT_Port, DHT_Pin, GPIO_PIN_RESET)
 #define lineUp()		HAL_GPIO_WritePin(DHT_Port, DHT_Pin, GPIO_PIN_SET)
 #define getLine()		(HAL_GPIO_ReadPin(DHT_Port, DHT_Pin) == GPIO_PIN_SET)
 #define Delay(d)		HAL_Delay(d)
@@ -38,8 +38,15 @@ static void goToInput(void) {
 }
 
 DHT_data DHT_getData(DHT_type t) {
-	DHT_data data = {0.0f, 0.0f};
+	static DHT_data data = {0.0f, 0.0f};
 	
+	#if DHT_POLLING_CONTROL == 1
+	/* Ограничение по частоте опроса датчика */
+	static uint32_t lastPollingTime = 0xFFFFFFFF-DHT_POLLING_INTERVAL;
+	if (HAL_GetTick()-lastPollingTime < DHT_POLLING_INTERVAL) return data;
+	lastPollingTime = HAL_GetTick();
+	#endif
+
 	/* Запрос данных у датчика */
 	//Перевод пина "на выход"
 	goToOutput();
@@ -55,18 +62,24 @@ DHT_data DHT_getData(DHT_type t) {
 	//Ожидание спада
 	while(getLine()) {
 		timeout++;
+		data.hum = 0.0f;
+		data.temp = 0.0f;
 		if (timeout > DHT_timeout) return data;
 	}
 	timeout = 0;
 	//Ожидание подъёма
 	while(!getLine()) {
 		timeout++;
+		data.hum = 0.0f;
+		data.temp = 0.0f;
 		if (timeout > DHT_timeout) return data;
 	}
 	timeout = 0;
 	//Ожидание спада
 	while(getLine()) {
 		timeout++;
+		data.hum = 0.0f;
+		data.temp = 0.0f;
 		if (timeout > DHT_timeout) return data;
 	}
 	
@@ -81,7 +94,11 @@ DHT_data DHT_getData(DHT_type t) {
 			timeout = 0;
 			while(getLine()) {
 				hT++; timeout++;
-			if (timeout > DHT_timeout) return data;
+				if (timeout > DHT_timeout) {
+					data.hum = 0.0f;
+					data.temp = 0.0f;
+					return data;
+				}
 			}
 			//Если hT больше lT, то пришла единица
 			if(hT > lT) rawData[a] |= (1<<b);
