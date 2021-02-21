@@ -3,32 +3,41 @@
 
 #include "main.h"
 
-/*TODO:
- * - Возможность получать значения с разных датчиков
- * - Функция получения целочисленных значений
- */
+/* Настройки */
+#define DHT_TIMEOUT 				10000	//Количество итераций, после которых функция вернёт пустые значения
+#define DHT_POLLING_CONTROL			1		//Включение проверки частоты опроса датчика
+#define DHT_POLLING_INTERVAL_DHT11	2000	//Интервал опроса DHT11 (0.5 Гц по даташиту). Можно поставить 1500, будет работать
+#define DHT_POLLING_INTERVAL_DHT22	1000	//Интервал опроса DHT22 (1 Гц по даташиту)
 
 /* Структура возвращаемых датчиком данных */
 typedef struct {
 	float hum;
 	float temp;
 } DHT_data;
+
 /* Тип используемого датчика */
 typedef enum {
 	DHT11,
 	DHT22
 } DHT_type;
 
-/* Настройки */
-#define DHT_Port 	DHT11_GPIO_Port		//Группа линии данных
-#define DHT_Pin 	DHT11_Pin 			//Пин линии данных
-#define DHT_PullUp 	1					//Нужно ли включать внутреннюю подтяжку пина к питанию
-#define DHT_timeout 			10000	//Количество итераций, после которых функция вернёт пустые значения
-#define DHT_POLLING_CONTROL		1		//Включение проверки частоты опроса датчика
-#define DHT_POLLING_INTERVAL	2000	//Через какой промежуток времени производить повторный опрос датчика
+/* Структура объекта датчика */
+typedef struct {
+	GPIO_TypeDef *DHT_Port;	//Порт датчика (GPIOA, GPIOB, etc)
+	uint16_t DHT_Pin;		//Номер пина датчика (GPIO_PIN_0, GPIO_PIN_1, etc)
+	DHT_type type;			//Тип датчика (DHT11 или DHT22)
+	uint8_t pullUp;			//Нужна ли подтяжка к питанию (0 - нет, 1 - да)
+
+	//Контроль частоты опроса датчика. Значения не заполнять!
+	#if DHT_POLLING_CONTROL == 1
+	uint32_t lastPollingTime;//Время последнего опроса датчика
+	float lastTemp;			 //Последнее значение температуры
+	float lastHum;			 //Последнее значение влажности
+	#endif
+} DHT_sensor;
 
 
 /* Прототипы функций */
-DHT_data DHT_getData(DHT_type t); //Получить данные с датчика
+DHT_data DHT_getData(DHT_sensor *sensor); //Получить данные с датчика
 
 #endif

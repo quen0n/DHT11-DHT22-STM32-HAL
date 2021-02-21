@@ -1,86 +1,93 @@
 #include "DHT.h"
 
-#define lineDown() 		HAL_GPIO_WritePin(DHT_Port, DHT_Pin, GPIO_PIN_RESET)
-#define lineUp()		HAL_GPIO_WritePin(DHT_Port, DHT_Pin, GPIO_PIN_SET)
-#define getLine()		(HAL_GPIO_ReadPin(DHT_Port, DHT_Pin) == GPIO_PIN_SET)
+#define lineDown() 		HAL_GPIO_WritePin(sensor->DHT_Port, sensor->DHT_Pin, GPIO_PIN_RESET)
+#define lineUp()		HAL_GPIO_WritePin(sensor->DHT_Port, sensor->DHT_Pin, GPIO_PIN_SET)
+#define getLine()		(HAL_GPIO_ReadPin(sensor->DHT_Port, sensor->DHT_Pin) == GPIO_PIN_SET)
 #define Delay(d)		HAL_Delay(d)
 
-static void goToOutput(void) {
+static void goToOutput(DHT_sensor *sensor) {
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   //По умолчанию на линии высокий уровень
-  HAL_GPIO_WritePin(DHT_Port, DHT_Pin, GPIO_PIN_SET);
+  lineUp();
 
   //Настройка порта на выход 
-  GPIO_InitStruct.Pin = DHT_Pin;
+  GPIO_InitStruct.Pin = sensor->DHT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD; 	//Открытый сток
-	#if DHT_PullUp == 1
-  GPIO_InitStruct.Pull = GPIO_PULLUP;						//Подтяжка к питанию
-	#else 
-  GPIO_InitStruct.Pull = GPIO_NOPULL;						//Без подтяжки
-	#endif
+  if(sensor->pullUp == 1) {
+	  GPIO_InitStruct.Pull = GPIO_PULLUP;						//Подтяжка к питанию
+  } else {
+	  GPIO_InitStruct.Pull = GPIO_NOPULL;						//Без подтяжки
+  }
+
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; //Высокая скорость работы порта
-  HAL_GPIO_Init(DHT_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(sensor->DHT_Port, &GPIO_InitStruct);
 }
 
-static void goToInput(void) {
+static void goToInput(DHT_sensor *sensor) {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   //Настройка порта на вход 
-  GPIO_InitStruct.Pin = DHT_Pin;
+  GPIO_InitStruct.Pin = sensor->DHT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	#if DHT_PullUp == 1
-  GPIO_InitStruct.Pull = GPIO_PULLUP;						//Подтяжка к питанию
-	#else 
-  GPIO_InitStruct.Pull = GPIO_NOPULL;						//Без подтяжки
-	#endif
-  HAL_GPIO_Init(DHT_Port, &GPIO_InitStruct);
+  if(sensor->pullUp == 1) {
+	  GPIO_InitStruct.Pull = GPIO_PULLUP;						//Подтяжка к питанию
+  } else {
+	  GPIO_InitStruct.Pull = GPIO_NOPULL;						//Без подтяжки
+  }
+  HAL_GPIO_Init(sensor->DHT_Port, &GPIO_InitStruct);
 }
 
-DHT_data DHT_getData(DHT_type t) {
-	static DHT_data data = {0.0f, 0.0f};
+DHT_data DHT_getData(DHT_sensor *sensor) {
+	DHT_data data = {0.0f, 0.0f};
 	
 	#if DHT_POLLING_CONTROL == 1
 	/* Ограничение по частоте опроса датчика */
-	static uint32_t lastPollingTime = 0xFFFFFFFF-DHT_POLLING_INTERVAL;
-	if (HAL_GetTick()-lastPollingTime < DHT_POLLING_INTERVAL) return data;
-	lastPollingTime = HAL_GetTick();
+	//Определение интервала опроса в зависимости от датчика
+	uint16_t pollingInterval;
+	if (sensor->type == DHT11) {
+		pollingInterval = DHT_POLLING_INTERVAL_DHT11;
+	} else {
+		pollingInterval = DHT_POLLING_INTERVAL_DHT22;
+	}
+
+	//Если частота превышена, то возврат последнего удачного значения
+	if (HAL_GetTick()-sensor->lastPollingTime < pollingInterval) {
+		data.hum = sensor->lastHum;
+		data.temp = sensor->lastTemp;
+		return data;
+	}
+	sensor->lastPollingTime = HAL_GetTick();
 	#endif
 
 	/* Запрос данных у датчика */
 	//Перевод пина "на выход"
-	goToOutput();
+	goToOutput(sensor);
 	//Опускание линии данных на 15 мс
 	lineDown();
 	Delay(15);
 	//Подъём линии, перевод порта "на вход"
 	lineUp();
-	goToInput();
+	goToInput(sensor);
 	
 	/* Ожидание ответа от датчика */
 	uint16_t timeout = 0;
 	//Ожидание спада
 	while(getLine()) {
 		timeout++;
-		data.hum = 0.0f;
-		data.temp = 0.0f;
-		if (timeout > DHT_timeout) return data;
+		if (timeout > DHT_TIMEOUT) return data;
 	}
 	timeout = 0;
 	//Ожидание подъёма
 	while(!getLine()) {
 		timeout++;
-		data.hum = 0.0f;
-		data.temp = 0.0f;
-		if (timeout > DHT_timeout) return data;
+		if (timeout > DHT_TIMEOUT) return data;
 	}
 	timeout = 0;
 	//Ожидание спада
 	while(getLine()) {
 		timeout++;
-		data.hum = 0.0f;
-		data.temp = 0.0f;
-		if (timeout > DHT_timeout) return data;
+		if (timeout > DHT_TIMEOUT) return data;
 	}
 	
 	/* Чтение ответа от датчика */
@@ -92,14 +99,7 @@ DHT_data DHT_getData(DHT_type t) {
 			while(!getLine()) lT++;
 			//Пока линия в высоком уровне, инкремент переменной hT
 			timeout = 0;
-			while(getLine()) {
-				hT++; timeout++;
-				if (timeout > DHT_timeout) {
-					data.hum = 0.0f;
-					data.temp = 0.0f;
-					return data;
-				}
-			}
+			while(getLine()) hT++;
 			//Если hT больше lT, то пришла единица
 			if(hT > lT) rawData[a] |= (1<<b);
 		}
@@ -107,7 +107,7 @@ DHT_data DHT_getData(DHT_type t) {
 	/* Проверка целостности данных */
 	if((uint8_t)(rawData[0] + rawData[1] + rawData[2] + rawData[3]) == rawData[4]) {
 		//Если контрольная сумма совпадает, то конвертация и возврат полученных значений
-		if (t == DHT22) {
+		if (sensor->type == DHT22) {
 			data.hum = (float)(((uint16_t)rawData[0]<<8) | rawData[1])*0.1f;
 			//Проверка на отрицательность температуры
 			if(!(rawData[2] & (1<<7))) {
@@ -117,11 +117,16 @@ DHT_data DHT_getData(DHT_type t) {
 				data.temp = (float)(((uint16_t)rawData[2]<<8) | rawData[3])*-0.1f;
 			}
 		}
-		if (t == DHT11) {
+		if (sensor->type == DHT11) {
 			data.hum = (float)rawData[0];
 			data.temp = (float)rawData[2];;
 		}
 	}
 	
+	#if DHT_POLLING_CONTROL == 1
+	sensor->lastHum = data.hum;
+	sensor->lastTemp = data.temp;
+	#endif
+
 	return data;	
 }
