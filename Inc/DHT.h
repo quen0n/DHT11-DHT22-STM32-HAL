@@ -26,7 +26,7 @@ typedef struct {
 	GPIO_TypeDef *DHT_Port;	//Порт датчика (GPIOA, GPIOB, etc)
 	uint16_t DHT_Pin;		//Номер пина датчика (GPIO_PIN_0, GPIO_PIN_1, etc)
 	DHT_type type;			//Тип датчика (DHT11 или DHT22)
-	uint8_t pullUp;			//Нужна ли подтяжка к питанию (0 - нет, 1 - да)
+	uint8_t pullUp;			//Нужна ли подтяжка линии данных к питанию (GPIO_NOPULL - нет, GPIO_PULLUP - да)
 
 	//Контроль частоты опроса датчика. Значения не заполнять!
 	#if DHT_POLLING_CONTROL == 1

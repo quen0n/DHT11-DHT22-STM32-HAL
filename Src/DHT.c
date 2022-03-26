@@ -14,11 +14,7 @@ static void goToOutput(DHT_sensor *sensor) {
   //Настройка порта на выход 
   GPIO_InitStruct.Pin = sensor->DHT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD; 	//Открытый сток
-  if(sensor->pullUp == 1) {
-	  GPIO_InitStruct.Pull = GPIO_PULLUP;						//Подтяжка к питанию
-  } else {
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;						//Без подтяжки
-  }
+  GPIO_InitStruct.Pull = sensor->pullUp;		//Подтяжка к питанию
 
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH; //Высокая скорость работы порта
   HAL_GPIO_Init(sensor->DHT_Port, &GPIO_InitStruct);
@@ -30,11 +26,7 @@ static void goToInput(DHT_sensor *sensor) {
   //Настройка порта на вход 
   GPIO_InitStruct.Pin = sensor->DHT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  if(sensor->pullUp == 1) {
-	  GPIO_InitStruct.Pull = GPIO_PULLUP;						//Подтяжка к питанию
-  } else {
-	  GPIO_InitStruct.Pull = GPIO_NOPULL;						//Без подтяжки
-  }
+  GPIO_InitStruct.Pull = sensor->pullUp;		//Подтяжка к питанию
   HAL_GPIO_Init(sensor->DHT_Port, &GPIO_InitStruct);
 }
 
