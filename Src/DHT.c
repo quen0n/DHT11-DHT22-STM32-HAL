@@ -43,13 +43,13 @@ DHT_data DHT_getData(DHT_sensor *sensor) {
 		pollingInterval = DHT_POLLING_INTERVAL_DHT22;
 	}
 
-	//Если частота превышена, то возврат последнего удачного значения
-	if (HAL_GetTick()-sensor->lastPollingTime < pollingInterval) {
+	//Если интервал маленький, то возврат последнего удачного значения
+	if ((HAL_GetTick() - sensor->lastPollingTime < pollingInterval) && sensor->lastPollingTime != 0) {
 		data.hum = sensor->lastHum;
 		data.temp = sensor->lastTemp;
 		return data;
 	}
-	sensor->lastPollingTime = HAL_GetTick();
+	sensor->lastPollingTime = HAL_GetTick()+1;
 	#endif
 
 	/* Запрос данных у датчика */
@@ -61,41 +61,67 @@ DHT_data DHT_getData(DHT_sensor *sensor) {
 	//Подъём линии, перевод порта "на вход"
 	lineUp();
 	goToInput(sensor);
-	
+
+
+	#ifdef DHT_IRQ_CONTROL
+	//Выключение прерываний, чтобы ничто не мешало обработке данных
+	__disable_irq();
+	#endif
 	/* Ожидание ответа от датчика */
 	uint16_t timeout = 0;
 	//Ожидание спада
 	while(getLine()) {
 		timeout++;
-		if (timeout > DHT_TIMEOUT) return data;
+		if (timeout > DHT_TIMEOUT) {
+			#ifdef DHT_IRQ_CONTROL
+			__enable_irq();
+			#endif
+			return data;
+		}
 	}
 	timeout = 0;
 	//Ожидание подъёма
 	while(!getLine()) {
 		timeout++;
-		if (timeout > DHT_TIMEOUT) return data;
+		if (timeout > DHT_TIMEOUT) {
+			#ifdef DHT_IRQ_CONTROL
+			__enable_irq();
+			#endif
+			return data;
+		}
 	}
 	timeout = 0;
 	//Ожидание спада
 	while(getLine()) {
 		timeout++;
-		if (timeout > DHT_TIMEOUT) return data;
+		if (timeout > DHT_TIMEOUT) {
+			#ifdef DHT_IRQ_CONTROL
+			__enable_irq();
+			#endif
+			return data;
+		}
 	}
 	
 	/* Чтение ответа от датчика */
 	uint8_t rawData[5] = {0,0,0,0,0};
 	for(uint8_t a = 0; a < 5; a++) {
 		for(uint8_t b = 7; b != 255; b--) {
-			uint32_t hT = 0, lT = 0;
+			uint16_t hT = 0, lT = 0;
 			//Пока линия в низком уровне, инкремент переменной lT
-			while(!getLine()) lT++;
+			while(!getLine() && lT != 65535) lT++;
 			//Пока линия в высоком уровне, инкремент переменной hT
 			timeout = 0;
-			while(getLine()) hT++;
+			while(getLine()&& hT != 65535) hT++;
 			//Если hT больше lT, то пришла единица
 			if(hT > lT) rawData[a] |= (1<<b);
 		}
 	}
+
+    #ifdef DHT_IRQ_CONTROL
+	//Включение прерываний после приёма данных
+	__enable_irq();
+    #endif
+
 	/* Проверка целостности данных */
 	if((uint8_t)(rawData[0] + rawData[1] + rawData[2] + rawData[3]) == rawData[4]) {
 		//Если контрольная сумма совпадает, то конвертация и возврат полученных значений
