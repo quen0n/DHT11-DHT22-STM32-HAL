@@ -31,7 +31,7 @@ static void goToInput(DHT_sensor *sensor) {
 }
 
 DHT_data DHT_getData(DHT_sensor *sensor) {
-	DHT_data data = {0.0f, 0.0f};
+	DHT_data data = {-128.0f, -128.0f};
 	
 	#if DHT_POLLING_CONTROL == 1
 	/* Ограничение по частоте опроса датчика */
@@ -76,6 +76,12 @@ DHT_data DHT_getData(DHT_sensor *sensor) {
 			#ifdef DHT_IRQ_CONTROL
 			__enable_irq();
 			#endif
+			//Если датчик не отозвался, значит его точно нет
+			//Обнуление последнего удачного значения, чтобы
+			//не получать фантомные значения
+			sensor->lastHum = -128.0f;
+			sensor->lastTemp = -128.0f;
+
 			return data;
 		}
 	}
@@ -87,6 +93,12 @@ DHT_data DHT_getData(DHT_sensor *sensor) {
 			#ifdef DHT_IRQ_CONTROL
 			__enable_irq();
 			#endif
+			//Если датчик не отозвался, значит его точно нет
+			//Обнуление последнего удачного значения, чтобы
+			//не получать фантомные значения
+			sensor->lastHum = -128.0f;
+			sensor->lastTemp = -128.0f;
+
 			return data;
 		}
 	}
@@ -137,7 +149,7 @@ DHT_data DHT_getData(DHT_sensor *sensor) {
 		}
 		if (sensor->type == DHT11) {
 			data.hum = (float)rawData[0];
-			data.temp = (float)rawData[2];;
+			data.temp = (float)rawData[2];
 		}
 	}
 	
