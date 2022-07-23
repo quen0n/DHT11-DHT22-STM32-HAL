@@ -55,9 +55,9 @@ DHT_data DHT_getData(DHT_sensor *sensor) {
 	/* Запрос данных у датчика */
 	//Перевод пина "на выход"
 	goToOutput(sensor);
-	//Опускание линии данных на 15 мс
+	//Опускание линии данных на 18 мс
 	lineDown();
-	Delay(15);
+	Delay(18);
 	//Подъём линии, перевод порта "на вход"
 	lineUp();
 	goToInput(sensor);
